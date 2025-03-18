@@ -1,6 +1,7 @@
 
 import React from 'react';
 import AiChat from '@/components/AiChat';
+import ApiKeyInput from '@/components/ApiKeyInput';
 
 const Index = () => {
   return (
@@ -15,6 +16,8 @@ const Index = () => {
             Interact with Google's powerful Gemini AI model in a modern, intuitive interface.
           </p>
         </div>
+        
+        <ApiKeyInput />
         
         <div className="glass-panel p-4 sm:p-6">
           <AiChat />

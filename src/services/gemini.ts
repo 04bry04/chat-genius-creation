@@ -7,14 +7,20 @@ const GEMINI_API_KEY = "VOTRE_CLE_API_ICI"; // Remplacez cette valeur par votre 
 // Option 1: Utiliser directement la clé API définie ci-dessus
 export const sendMessage = async (message: string, conversation: Message[]): Promise<string> => {
   try {
-    // Si vous n'avez pas encore une clé API valide, utilisez la version simulée
-    if (GEMINI_API_KEY === "VOTRE_CLE_API_ICI") {
+    // Récupérer la clé API depuis localStorage s'il y en a une, sinon utiliser la constante
+    const apiKey = getApiKey() || GEMINI_API_KEY;
+    
+    // Si aucune clé API valide n'est disponible, utilisez la version simulée
+    if (!apiKey || apiKey === "VOTRE_CLE_API_ICI") {
+      console.log("Aucune clé API valide trouvée, utilisation du mode simulation");
       return simulateAIResponse(message, conversation);
     }
     
+    console.log("Préparation de l'appel à l'API Gemini avec une clé valide");
+    
     // Configuration de la requête API
     const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
-    const queryParams = `?key=${GEMINI_API_KEY}`;
+    const queryParams = `?key=${apiKey}`;
     
     // Formater l'historique de conversation
     const formattedConversation = conversation.map(msg => ({
@@ -39,6 +45,8 @@ export const sendMessage = async (message: string, conversation: Message[]): Pro
       },
     };
     
+    console.log("Envoi de la requête à l'API Gemini...");
+    
     // Envoi de la requête
     const response = await fetch(`${url}${queryParams}`, {
       method: 'POST',
@@ -48,27 +56,51 @@ export const sendMessage = async (message: string, conversation: Message[]): Pro
       body: JSON.stringify(requestBody),
     });
     
+    console.log("Statut de la réponse:", response.status);
+    
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+      const errorText = await response.text();
+      console.error("Détails de l'erreur API:", errorText);
+      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
     }
     
     const data = await response.json();
+    
+    if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+      console.error("Format de réponse inattendu:", JSON.stringify(data));
+      throw new Error("Format de réponse inattendu de l'API Gemini");
+    }
+    
+    console.log("Réponse reçue avec succès de l'API Gemini");
     return data.candidates[0].content.parts[0].text;
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    toast.error("Échec de la réponse de l'IA. Veuillez réessayer.");
-    return "Je suis désolé, mais j'ai rencontré une erreur lors du traitement de votre demande. Veuillez réessayer.";
+    console.error("Erreur détaillée lors de l'appel à l'API Gemini:", error);
+    
+    // Message d'erreur plus spécifique selon le type d'erreur
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      toast.error("Problème de connexion réseau. Vérifiez votre connexion internet.");
+    } else if (error instanceof Error && error.message.includes('429')) {
+      toast.error("Limite de l'API atteinte. Veuillez réessayer plus tard.");
+    } else if (error instanceof Error && error.message.includes('403')) {
+      toast.error("Clé API invalide ou problème d'autorisation. Vérifiez votre clé API.");
+    } else {
+      toast.error("Échec de la réponse de l'IA. Veuillez réessayer.");
+    }
+    
+    return "Je suis désolé, mais j'ai rencontré une erreur lors du traitement de votre demande. Veuillez vérifier votre clé API et réessayer.";
   }
 };
 
 // Option 2: Utiliser une clé stockée dans localStorage (plus sécurisé pour frontend uniquement)
 export const setApiKey = (key: string) => {
   localStorage.setItem('gemini_api_key', key);
+  console.log("Clé API enregistrée dans localStorage");
   return true;
 };
 
 export const getApiKey = () => {
-  return localStorage.getItem('gemini_api_key');
+  const key = localStorage.getItem('gemini_api_key');
+  return key;
 };
 
 // Cette fonction simule les réponses de l'IA pour la démonstration
