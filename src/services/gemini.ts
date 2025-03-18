@@ -1,28 +1,77 @@
-
 import { type Message } from '@/components/AiChat';
 import { toast } from 'sonner';
 
-// This is a placeholder for the actual API implementation
-// In a real application, you would connect to the Gemini API here
+// Constante pour stocker la clé API
+const GEMINI_API_KEY = "VOTRE_CLE_API_ICI"; // Remplacez cette valeur par votre clé API
+
+// Option 1: Utiliser directement la clé API définie ci-dessus
 export const sendMessage = async (message: string, conversation: Message[]): Promise<string> => {
-  // In a real implementation, you would:
-  // 1. Format the conversation history
-  // 2. Send the request to the Gemini API
-  // 3. Process and return the response
-  
-  // For demonstration purposes, we'll simulate a response with a delay
-  return new Promise((resolve) => {
-    // Simulate API delay
-    setTimeout(() => {
-      // This is where you would normally call the actual Gemini API
-      const response = simulateAIResponse(message, conversation);
-      resolve(response);
-    }, 1500);
-  });
+  try {
+    // Si vous n'avez pas encore une clé API valide, utilisez la version simulée
+    if (GEMINI_API_KEY === "VOTRE_CLE_API_ICI") {
+      return simulateAIResponse(message, conversation);
+    }
+    
+    // Configuration de la requête API
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+    const queryParams = `?key=${GEMINI_API_KEY}`;
+    
+    // Formater l'historique de conversation
+    const formattedConversation = conversation.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
+    
+    // Ajouter le message actuel
+    formattedConversation.push({
+      role: 'user',
+      parts: [{ text: message }]
+    });
+    
+    // Corps de la requête
+    const requestBody = {
+      contents: formattedConversation,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      },
+    };
+    
+    // Envoi de la requête
+    const response = await fetch(`${url}${queryParams}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+  } catch (error) {
+    console.error("Error calling Gemini API:", error);
+    toast.error("Échec de la réponse de l'IA. Veuillez réessayer.");
+    return "Je suis désolé, mais j'ai rencontré une erreur lors du traitement de votre demande. Veuillez réessayer.";
+  }
 };
 
-// This function simulates AI responses for demonstration
-// In a real app, replace this with actual API calls to Gemini
+// Option 2: Utiliser une clé stockée dans localStorage (plus sécurisé pour frontend uniquement)
+export const setApiKey = (key: string) => {
+  localStorage.setItem('gemini_api_key', key);
+  return true;
+};
+
+export const getApiKey = () => {
+  return localStorage.getItem('gemini_api_key');
+};
+
+// Cette fonction simule les réponses de l'IA pour la démonstration
 const simulateAIResponse = (message: string, conversation: Message[]): string => {
   const lowercaseMsg = message.toLowerCase();
   
@@ -44,44 +93,3 @@ const simulateAIResponse = (message: string, conversation: Message[]): string =>
     return "That's an interesting question. In a fully implemented version, I would connect to Google's Gemini API to provide you with a thorough and helpful response. For now, this is a demonstration of the user interface and interaction design. Feel free to try some of the example prompts!";
   }
 };
-
-// In a real application, you would implement an actual connection to the Gemini API
-// Here's a commented out example of what that might look like:
-
-/*
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// Initialize the API with your API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-export const sendMessage = async (message: string, conversation: Message[]): Promise<string> => {
-  try {
-    // Format conversation history
-    const history = conversation.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.content }]
-    }));
-    
-    // Start a chat session
-    const chat = model.startChat({
-      history,
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024,
-      },
-    });
-    
-    // Send message and get response
-    const result = await chat.sendMessage(message);
-    const response = result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    toast.error("Failed to get a response from the AI. Please try again.");
-    return "I'm sorry, but I encountered an error processing your request. Please try again.";
-  }
-};
-*/
