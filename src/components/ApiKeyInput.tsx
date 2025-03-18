@@ -10,12 +10,17 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 const ApiKeyInput = () => {
   const [apiKey, setApiKeyState] = useState('');
   const [isKeySet, setIsKeySet] = useState(false);
+  const [isLocked, setIsLocked] = useState(true);
 
   useEffect(() => {
     // Vérifier si une clé existe déjà
     const savedKey = getApiKey();
     if (savedKey) {
-      setApiKeyState(savedKey);
+      // Masquer la clé par sécurité (afficher uniquement les 4 derniers caractères)
+      const maskedKey = savedKey.length > 4 
+        ? '••••••••' + savedKey.substring(savedKey.length - 4) 
+        : savedKey;
+      setApiKeyState(maskedKey);
       setIsKeySet(true);
     }
   }, []);
@@ -23,9 +28,13 @@ const ApiKeyInput = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (apiKey.trim()) {
-      setApiKey(apiKey.trim());
-      setIsKeySet(true);
-      toast.success('Clé API enregistrée avec succès');
+      // Si la clé est masquée et verrouillée, ne pas la mettre à jour
+      if (!isLocked || !isKeySet) {
+        setApiKey(apiKey.trim());
+        setIsKeySet(true);
+        setIsLocked(true);
+        toast.success('Clé API enregistrée avec succès');
+      }
     } else {
       toast.error('Veuillez entrer une clé API valide');
     }
@@ -35,8 +44,27 @@ const ApiKeyInput = () => {
     setApiKey('');
     setApiKeyState('');
     setIsKeySet(false);
+    setIsLocked(true);
     localStorage.removeItem('gemini_api_key');
     toast.info('Clé API supprimée');
+  };
+
+  const handleToggleLock = () => {
+    if (isLocked) {
+      // Déverrouiller et effacer le champ pour permettre la saisie
+      setApiKeyState('');
+      setIsLocked(false);
+    } else {
+      // Si on reverrouille sans soumettre, restaurer la clé masquée
+      const savedKey = getApiKey();
+      if (savedKey && isKeySet) {
+        const maskedKey = savedKey.length > 4 
+          ? '••••••••' + savedKey.substring(savedKey.length - 4) 
+          : savedKey;
+        setApiKeyState(maskedKey);
+      }
+      setIsLocked(true);
+    }
   };
 
   return (
@@ -46,7 +74,7 @@ const ApiKeyInput = () => {
         <AlertTitle>Configuration requise</AlertTitle>
         <AlertDescription>
           Pour utiliser Gemini Flash Chat, vous devez fournir une clé API Google Gemini valide.
-          Vous pouvez en obtenir une sur <a href="https://ai.google.dev/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Google AI Studio</a>.
+          Vous pouvez en obtenir une sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline">Google AI Studio</a>.
         </AlertDescription>
       </Alert>
       
@@ -57,9 +85,22 @@ const ApiKeyInput = () => {
           value={apiKey}
           onChange={(e) => setApiKeyState(e.target.value)}
           className="flex-1"
+          disabled={isKeySet && isLocked}
         />
         <div className="flex gap-2">
-          <Button type="submit" disabled={!apiKey.trim()}>
+          {isKeySet && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleToggleLock}
+            >
+              {isLocked ? 'Modifier' : 'Annuler'}
+            </Button>
+          )}
+          <Button 
+            type="submit" 
+            disabled={(isKeySet && isLocked) || !apiKey.trim()}
+          >
             {isKeySet ? 'Mettre à jour' : 'Enregistrer'}
           </Button>
           {isKeySet && (

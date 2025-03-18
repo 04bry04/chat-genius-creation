@@ -1,3 +1,4 @@
+
 import { type Message } from '@/components/AiChat';
 import { toast } from 'sonner';
 
@@ -46,6 +47,8 @@ export const sendMessage = async (message: string, conversation: Message[]): Pro
     };
     
     console.log("Envoi de la requête à l'API Gemini...");
+    console.log("URL:", `${url}${queryParams}`);
+    console.log("Contenu de la requête:", JSON.stringify(requestBody, null, 2));
     
     // Envoi de la requête
     const response = await fetch(`${url}${queryParams}`, {
@@ -65,6 +68,7 @@ export const sendMessage = async (message: string, conversation: Message[]): Pro
     }
     
     const data = await response.json();
+    console.log("Structure de la réponse:", JSON.stringify(data, null, 2));
     
     if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
       console.error("Format de réponse inattendu:", JSON.stringify(data));
@@ -100,6 +104,7 @@ export const setApiKey = (key: string) => {
 
 export const getApiKey = () => {
   const key = localStorage.getItem('gemini_api_key');
+  console.log("Récupération de la clé API depuis localStorage:", key ? "Clé trouvée" : "Aucune clé trouvée");
   return key;
 };
 
